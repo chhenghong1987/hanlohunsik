@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台語漢羅混排分析儀 - AditorWork 專用版</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2a9d8f;
+            --secondary: #e76f51;
+            --bg: #f8f9fa;
+            --card: #ffffff;
+        }
+        body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: var(--bg); color: #333; line-height: 1.6; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 30px; }
+        .editor-area { display: grid; grid-template-columns: 1fr 300px; gap: 20px; }
+        textarea { width: 100%; height: 350px; padding: 15px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; resize: none; box-sizing: border-box; }
+        textarea:focus { border-color: var(--primary); outline: none; }
+        .sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .stats-item { margin-bottom: 20px; }
+        .label { font-size: 14px; color: #666; }
+        .value { font-size: 24px; font-weight: bold; color: var(--primary); }
+        .advice-card { background: #fff; margin-top: 20px; padding: 20px; border-left: 5px solid var(--primary); border-radius: 4px; }
+        .risk-tag { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
+        .low-risk { background: #e9f5f2; color: #2a9d8f; }
+        .mid-risk { background: #fff4e6; color: #f8961e; }
+        .high-risk { background: #ffebee; color: #d62828; }
+        canvas { max-width: 100%; margin-top: 10px; }
+        button { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; transition: 0.3s; }
+        button:hover { opacity: 0.9; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>台語漢羅混排分析儀</h1>
+        <p>分析文章佔比，預判排版字距風險</p>
+    </header>
+
+    <div class="editor-area">
+        <div class="main-input">
+            <textarea id="textInput" placeholder="請貼入台語文稿（漢字與羅馬字混排）..."></textarea>
+            <button onclick="performAnalysis()">立即分析文稿</button>
+        </div>
+
+        <div class="sidebar">
+            <div class="stats-item">
+                <span class="label">分析數據</span>
+                <canvas id="ratioChart"></canvas>
+            </div>
+            <div id="statList">
+                </div>
+        </div>
+    </div>
+
+    <div id="adviceSection" class="advice-card" style="display:none;">
+        <div id="riskLevel" class="risk-tag"></div>
+        <h3 style="margin-top:0;">💡 編輯排版策略建議</h3>
+        <div id="adviceContent"></div>
+    </div>
+</div>
+
+<script>
+    let myChart = null;
+
+    function performAnalysis() {
+        const text = document.getElementById('textInput').value;
+        if (!text.trim()) return;
+
+        // 1. 邏輯辨識
+        // 漢字：Unicode 範圍
+        const hanzi = text.match(/[\u4e00-\u9fa5]/g) || [];
+        // 羅馬字詞（考量聲調符號與連字號）
+        const loresMatches = text.match(/[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]+(-[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]+)*/g) || [];
+        const loresLength = loresMatches.join('').length;
+        
+        const total = hanzi.length + loresLength;
+        const hanRatio = ((hanzi.length / total) * 100) || 0;
+        const loRatio = (100 - hanRatio) || 0;
+
+        // 2. 更新側欄數據
+        const statList = document.getElementById('statList');
+        statList.innerHTML = `
+            <div class="stats-item"><span class="label">漢字總數</span><br><span class="value">${hanzi.length}</span></div>
+            <div class="stats-item"><span class="label">羅馬字元</span><br><span class="value">${loresLength}</span></div>
+            <div class="stats-item"><span class="label">漢羅比例</span><br><strong>${hanRatio.toFixed(1)}% : ${loRatio.toFixed(1)}%</strong></div>
+        `;
+
+        // 3. 繪製圖表
+        updateChart(hanRatio, loRatio);
+
+        // 4. 排版建議邏輯
+        displayAdvice(hanRatio);
+    }
+
+    function updateChart(han, lo) {
+        const ctx = document.getElementById('ratioChart').getContext('2d');
+        if (myChart) myChart.destroy();
+        myChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['漢字', '羅馬字'],
+                datasets: [{
+                    data: [han, lo],
+                    backgroundColor: ['#2a9d8f', '#e9c46a'],
+                    borderWidth: 0
+                }]
+            },
+            options: { cutout: '70%', plugins: { legend: { position: 'bottom' } } }
+        });
+    }
+
+    function displayAdvice(hanRatio) {
+        const section = document.getElementById('adviceSection');
+        const risk = document.getElementById('riskLevel');
+        const content = document.getElementById('adviceContent');
+        section.style.display = 'block';
+
+        if (hanRatio > 90) {
+            risk.innerText = "排版風險：低";
+            risk.className = "risk-tag low-risk";
+            content.innerHTML = "<ul><li>以中文排版慣例為主。</li><li>注意零星出現的羅馬字是否會造成該行齊行過鬆。</li><li>InDesign 建議：間距組合使用預設「繁體中文」即可。</li></ul>";
+        } else if (hanRatio > 40) {
+            risk.innerText = "排版風險：高 (字距重災區)";
+            risk.className = "risk-tag high-risk";
+            content.innerHTML = "<ul><li><strong>核心問題：</strong>中西文字符密度不均，易產生視覺破洞。</li><li>建議針對羅馬字建立「字元樣式」，將字級縮小 3-5%，並手動微調 Tracking (-20)。</li><li>InDesign 建議：務必自訂「間距組合」，將中文與歐文字距設為固定 0%。</li></ul>";
+        } else {
+            risk.innerText = "排版風險：中";
+            risk.className = "risk-tag mid-risk";
+            content.innerHTML = "<ul><li>建議轉向「歐文排版」邏輯。</li><li>注意台羅聲調符號是否會撞到上一行的下緣。</li><li>行距建議設定為字級的 1.8 倍至 2.0 倍。</li><li>檢查連字號 (Hyphen) 在行末的斷詞規則。</li></ul>";
+        }
+    }
+</script>
+
+</body>
+</html>
