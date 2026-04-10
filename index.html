@@ -64,75 +64,68 @@
 </div>
 
 <script>
-    let myChart = null;
+function performAnalysis() {
+    const text = document.getElementById('textInput').value;
+    if (!text.trim()) return;
 
-    function performAnalysis() {
-        const text = document.getElementById('textInput').value;
-        if (!text.trim()) return;
+    // 1. 基本辨識
+    const hanzi = text.match(/[\u4e00-\u9fa5]/g) || [];
+    // 匹配羅馬字單詞（包含連字號與聲調符號）
+    const loresMatches = text.match(/[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]+(-[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]+)*/g) || [];
+    const loresLength = loresMatches.join('').length;
+    
+    const total = hanzi.length + loresLength;
+    const hanRatio = ((hanzi.length / total) * 100) || 0;
+    const loRatio = (100 - hanRatio) || 0;
 
-        // 1. 邏輯辨識
-        // 漢字：Unicode 範圍
-        const hanzi = text.match(/[\u4e00-\u9fa5]/g) || [];
-        // 羅馬字詞（考量聲調符號與連字號）
-        const loresMatches = text.match(/[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]+(-[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]+)*/g) || [];
-        const loresLength = loresMatches.join('').length;
-        
-        const total = hanzi.length + loresLength;
-        const hanRatio = ((hanzi.length / total) * 100) || 0;
-        const loRatio = (100 - hanRatio) || 0;
+    // 2. 字詞長度檢測 (找出長度 > 10 的單詞)
+    const longWords = loresMatches.filter(word => word.length > 10);
+    const uniqueLongWords = [...new Set(longWords)]; // 去除重複
 
-        // 2. 更新側欄數據
-        const statList = document.getElementById('statList');
-        statList.innerHTML = `
-            <div class="stats-item"><span class="label">漢字總數</span><br><span class="value">${hanzi.length}</span></div>
-            <div class="stats-item"><span class="label">羅馬字元</span><br><span class="value">${loresLength}</span></div>
-            <div class="stats-item"><span class="label">漢羅比例</span><br><strong>${hanRatio.toFixed(1)}% : ${loRatio.toFixed(1)}%</strong></div>
+    // 3. 更新側欄數據
+    const statList = document.getElementById('statList');
+    statList.innerHTML = `
+        <div class="stats-item"><span class="label">漢字總數</span><br><span class="value">${hanzi.length}</span></div>
+        <div class="stats-item"><span class="label">羅馬字元</span><br><span class="value">${loresLength}</span></div>
+        <div class="stats-item"><span class="label">漢羅比例</span><br><strong>${hanRatio.toFixed(1)}% : ${loRatio.toFixed(1)}%</strong></div>
+        <div class="stats-item"><span class="label">長詞風險</span><br><strong style="color: ${uniqueLongWords.length > 0 ? '#d62828' : '#2a9d8f'}">${uniqueLongWords.length} 個</strong></div>
+    `;
+
+    updateChart(hanRatio, loRatio);
+    displayAdvice(hanRatio, uniqueLongWords);
+}
+
+function displayAdvice(hanRatio, longWords) {
+    const section = document.getElementById('adviceSection');
+    const risk = document.getElementById('riskLevel');
+    const content = document.getElementById('adviceContent');
+    section.style.display = 'block';
+
+    let longWordListHtml = "";
+    if (longWords.length > 0) {
+        longWordListHtml = `
+            <div style="margin-top: 15px; padding: 10px; background: #fff5f5; border: 1px solid #feb2b2; border-radius: 4px;">
+                <strong style="color: #c53030;">⚠️ 偵測到超長羅馬字詞：</strong><br>
+                <small>以下單詞極易造成齊行排版時的「大破洞」，請考慮開啟斷詞或手動調整字距：</small>
+                <ul style="margin: 5px 0; color: #c53030; font-family: monospace;">
+                    ${longWords.map(w => `<li>${w}</li>`).join('')}
+                </ul>
+            </div>
         `;
-
-        // 3. 繪製圖表
-        updateChart(hanRatio, loRatio);
-
-        // 4. 排版建議邏輯
-        displayAdvice(hanRatio);
     }
 
-    function updateChart(han, lo) {
-        const ctx = document.getElementById('ratioChart').getContext('2d');
-        if (myChart) myChart.destroy();
-        myChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['漢字', '羅馬字'],
-                datasets: [{
-                    data: [han, lo],
-                    backgroundColor: ['#2a9d8f', '#e9c46a'],
-                    borderWidth: 0
-                }]
-            },
-            options: { cutout: '70%', plugins: { legend: { position: 'bottom' } } }
-        });
+    // 原有的比例建議邏輯...
+    let baseAdvice = "";
+    if (hanRatio > 85) {
+        baseAdvice = "以中文為主，長詞若出現請手動微調。";
+    } else if (hanRatio > 40) {
+        baseAdvice = "<strong>高難度混排：</strong>請務必檢查長詞清單，這些詞彙在齊行時會讓漢字間距變得很難看。";
+    } else {
+        baseAdvice = "羅馬字為主，建議直接開啟 InDesign 的 Hyphenation (斷詞) 功能。";
     }
 
-    function displayAdvice(hanRatio) {
-        const section = document.getElementById('adviceSection');
-        const risk = document.getElementById('riskLevel');
-        const content = document.getElementById('adviceContent');
-        section.style.display = 'block';
-
-        if (hanRatio > 90) {
-            risk.innerText = "排版風險：低";
-            risk.className = "risk-tag low-risk";
-            content.innerHTML = "<ul><li>以中文排版慣例為主。</li><li>注意零星出現的羅馬字是否會造成該行齊行過鬆。</li><li>InDesign 建議：間距組合使用預設「繁體中文」即可。</li></ul>";
-        } else if (hanRatio > 40) {
-            risk.innerText = "排版風險：高 (字距重災區)";
-            risk.className = "risk-tag high-risk";
-            content.innerHTML = "<ul><li><strong>核心問題：</strong>中西文字符密度不均，易產生視覺破洞。</li><li>建議針對羅馬字建立「字元樣式」，將字級縮小 3-5%，並手動微調 Tracking (-20)。</li><li>InDesign 建議：務必自訂「間距組合」，將中文與歐文字距設為固定 0%。</li></ul>";
-        } else {
-            risk.innerText = "排版風險：中";
-            risk.className = "risk-tag mid-risk";
-            content.innerHTML = "<ul><li>建議轉向「歐文排版」邏輯。</li><li>注意台羅聲調符號是否會撞到上一行的下緣。</li><li>行距建議設定為字級的 1.8 倍至 2.0 倍。</li><li>檢查連字號 (Hyphen) 在行末的斷詞規則。</li></ul>";
-        }
-    }
+    content.innerHTML = `<p>${baseAdvice}</p>` + longWordListHtml;
+}
 </script>
 
 </body>
