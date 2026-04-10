@@ -3,129 +3,158 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台語漢羅混排分析儀</title>
+    <title>台語漢羅排版分析儀</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --primary: #2a9d8f;
-            --secondary: #e76f51;
-            --bg: #f8f9fa;
-            --card: #ffffff;
+            --secondary: #e9c46a;
+            --danger: #e76f51;
+            --no-break: #8338ec;
+            --bg: #f4f4f9;
         }
         body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: var(--bg); color: #333; line-height: 1.6; margin: 0; padding: 20px; }
-        .container { max-width: 900px; margin: 0 auto; }
-        header { text-align: center; margin-bottom: 30px; }
-        .editor-area { display: grid; grid-template-columns: 1fr 300px; gap: 20px; }
-        textarea { width: 100%; height: 350px; padding: 15px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; resize: none; box-sizing: border-box; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #ddd; padding-bottom: 15px; }
+        .editor-area { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+        textarea { width: 100%; height: 500px; padding: 15px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; resize: none; box-sizing: border-box; }
         textarea:focus { border-color: var(--primary); outline: none; }
-        .sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .stats-item { margin-bottom: 20px; }
-        .label { font-size: 14px; color: #666; }
-        .value { font-size: 24px; font-weight: bold; color: var(--primary); }
-        .advice-card { background: #fff; margin-top: 20px; padding: 20px; border-left: 5px solid var(--primary); border-radius: 4px; }
-        .risk-tag { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
-        .low-risk { background: #e9f5f2; color: #2a9d8f; }
-        .mid-risk { background: #fff4e6; color: #f8961e; }
-        .high-risk { background: #ffebee; color: #d62828; }
-        canvas { max-width: 100%; margin-top: 10px; }
-        button { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; transition: 0.3s; }
-        button:hover { opacity: 0.9; }
+        .sidebar { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .stats-item { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #eee; }
+        .label { font-size: 13px; color: #777; display: block; }
+        .value { font-size: 20px; font-weight: bold; color: var(--primary); }
+        .advice-card { background: #fff; margin-top: 20px; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .tag { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-bottom: 10px; color: white; }
+        .tag-danger { background: var(--danger); }
+        .tag-no-break { background: var(--no-break); }
+        .long-word-box { margin-top: 15px; padding: 15px; background: #fff5f5; border: 1px solid #feb2b2; border-radius: 6px; }
+        .nobreak-box { margin-top: 15px; padding: 15px; background: #f3f0ff; border: 1px solid #dcd3ff; border-radius: 6px; }
+        .word-list { font-family: "Courier New", monospace; font-size: 14px; margin: 8px 0; padding-left: 20px; }
+        button { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #21867a; }
+        canvas { max-width: 100%; margin: 10px 0; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <header>
-        <h1>台語漢羅混排分析儀</h1>
-        <p>分析文章佔比，預判排版字距風險</p>
+        <h1>台語漢羅排版分析儀</h1>
+        <p>專業編輯工具：漢字/羅馬字比例與語言特性風險偵測</p>
     </header>
 
     <div class="editor-area">
         <div class="main-input">
-            <textarea id="textInput" placeholder="請貼入台語文稿（漢字與羅馬字混排）..."></textarea>
-            <button onclick="performAnalysis()">立即分析文稿</button>
+            <textarea id="textInput" placeholder="請貼入台語文稿..."></textarea>
+            <button onclick="performAnalysis()">進行語言與排版分析</button>
         </div>
 
         <div class="sidebar">
-            <div class="stats-item">
-                <span class="label">分析數據</span>
+            <div class="stats-item" style="border:none;">
+                <span class="label">佔比視覺化</span>
                 <canvas id="ratioChart"></canvas>
             </div>
-            <div id="statList">
-                </div>
+            <div id="statList"></div>
         </div>
     </div>
 
     <div id="adviceSection" class="advice-card" style="display:none;">
-        <div id="riskLevel" class="risk-tag"></div>
-        <h3 style="margin-top:0;">💡 編輯排版策略建議</h3>
+        <h3 style="margin-top:0;">📋 排版風險報告 (Layout Risk Report)</h3>
         <div id="adviceContent"></div>
     </div>
 </div>
 
 <script>
-function performAnalysis() {
-    const text = document.getElementById('textInput').value;
-    if (!text.trim()) return;
+    let myChart = null;
 
-    // 1. 基本辨識
-    const hanzi = text.match(/[\u4e00-\u9fa5]/g) || [];
-    // 匹配羅馬字單詞（包含連字號與聲調符號）
-    const loresMatches = text.match(/[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]+(-[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]+)*/g) || [];
-    const loresLength = loresMatches.join('').length;
-    
-    const total = hanzi.length + loresLength;
-    const hanRatio = ((hanzi.length / total) * 100) || 0;
-    const loRatio = (100 - hanRatio) || 0;
+    function performAnalysis() {
+        const text = document.getElementById('textInput').value;
+        if (!text.trim()) return;
 
-    // 2. 字詞長度檢測 (找出長度 > 10 的單詞)
-    const longWords = loresMatches.filter(word => word.length > 10);
-    const uniqueLongWords = [...new Set(longWords)]; // 去除重複
+        // 1. 基礎統計
+        const hanzi = text.match(/[\u4e00-\u9fa5]/g) || [];
+        const loresMatches = text.match(/[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]+(-[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]+)*/g) || [];
+        const loresLength = loresMatches.join('').length;
+        const total = hanzi.length + loresLength;
+        const hanRatio = (hanzi.length / total * 100) || 0;
+        const loRatio = 100 - hanRatio;
 
-    // 3. 更新側欄數據
-    const statList = document.getElementById('statList');
-    statList.innerHTML = `
-        <div class="stats-item"><span class="label">漢字總數</span><br><span class="value">${hanzi.length}</span></div>
-        <div class="stats-item"><span class="label">羅馬字元</span><br><span class="value">${loresLength}</span></div>
-        <div class="stats-item"><span class="label">漢羅比例</span><br><strong>${hanRatio.toFixed(1)}% : ${loRatio.toFixed(1)}%</strong></div>
-        <div class="stats-item"><span class="label">長詞風險</span><br><strong style="color: ${uniqueLongWords.length > 0 ? '#d62828' : '#2a9d8f'}">${uniqueLongWords.length} 個</strong></div>
-    `;
+        // 2. 輕聲偵測 (-- 禁止斷行)
+        const doubleHyphenWords = text.match(/[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]+--[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]+/g) || [];
+        const uniqueNoBreaks = [...new Set(doubleHyphenWords)];
 
-    updateChart(hanRatio, loRatio);
-    displayAdvice(hanRatio, uniqueLongWords);
-}
+        // 3. 高風險長詞 (長度 > 12)
+        const longWords = loresMatches.filter(word => word.length > 12);
+        const uniqueLongWords = [...new Set(longWords)];
 
-function displayAdvice(hanRatio, longWords) {
-    const section = document.getElementById('adviceSection');
-    const risk = document.getElementById('riskLevel');
-    const content = document.getElementById('adviceContent');
-    section.style.display = 'block';
-
-    let longWordListHtml = "";
-    if (longWords.length > 0) {
-        longWordListHtml = `
-            <div style="margin-top: 15px; padding: 10px; background: #fff5f5; border: 1px solid #feb2b2; border-radius: 4px;">
-                <strong style="color: #c53030;">⚠️ 偵測到超長羅馬字詞：</strong><br>
-                <small>以下單詞極易造成齊行排版時的「大破洞」，請考慮開啟斷詞或手動調整字距：</small>
-                <ul style="margin: 5px 0; color: #c53030; font-family: monospace;">
-                    ${longWords.map(w => `<li>${w}</li>`).join('')}
-                </ul>
-            </div>
+        // 4. 更新側欄
+        document.getElementById('statList').innerHTML = `
+            <div class="stats-item"><span class="label">漢字總數</span><span class="value">${hanzi.length}</span></div>
+            <div class="stats-item"><span class="label">羅馬字元數</span><span class="value">${loresLength}</span></div>
+            <div class="stats-item"><span class="label">禁斷輕聲詞(--)</span><span class="value" style="color:var(--no-break)">${uniqueNoBreaks.length}</span></div>
+            <div class="stats-item"><span class="label">高風險長詞</span><span class="value" style="color:var(--danger)">${uniqueLongWords.length}</span></div>
         `;
+
+        updateChart(hanRatio, loRatio);
+        displayAdvice(hanRatio, uniqueNoBreaks, uniqueLongWords);
     }
 
-    // 原有的比例建議邏輯...
-    let baseAdvice = "";
-    if (hanRatio > 85) {
-        baseAdvice = "以中文為主，長詞若出現請手動微調。";
-    } else if (hanRatio > 40) {
-        baseAdvice = "<strong>高難度混排：</strong>請務必檢查長詞清單，這些詞彙在齊行時會讓漢字間距變得很難看。";
-    } else {
-        baseAdvice = "羅馬字為主，建議直接開啟 InDesign 的 Hyphenation (斷詞) 功能。";
+    function updateChart(han, lo) {
+        const ctx = document.getElementById('ratioChart').getContext('2d');
+        if (myChart) myChart.destroy();
+        myChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['漢字', '羅馬字'],
+                datasets: [{ data: [han, lo], backgroundColor: ['#2a9d8f', '#e9c46a'], borderWidth: 0 }]
+            },
+            options: { cutout: '70%', plugins: { legend: { position: 'bottom' } } }
+        });
     }
 
-    content.innerHTML = `<p>${baseAdvice}</p>` + longWordListHtml;
-}
+    function displayAdvice(hanRatio, noBreaks, longWords) {
+        const section = document.getElementById('adviceSection');
+        const content = document.getElementById('adviceContent');
+        section.style.display = 'block';
+
+        let html = "";
+
+        // 比例建議
+        if (hanRatio > 40 && hanRatio < 75) {
+            html += `<p>⚠️ <strong>當前比例屬於「漢羅均勢區」</strong>：字距最易失控。建議設定 InDesign 間距組合，強迫將中英文間距設為 0%。</p>`;
+        }
+
+        // 輕聲禁斷建議
+        if (noBreaks.length > 0) {
+            html += `
+                <div class="nobreak-box">
+                    <span class="tag tag-no-break">禁止斷行：輕聲詞</span><br>
+                    <small>下列輕聲詞含有雙連字號「--」，排版時<strong>絕對不可</strong>拆散至兩行：</small>
+                    <ul class="word-list">${noBreaks.map(w => `<li>${w}</li>`).join('')}</ul>
+                    <small>建議對這些詞套用「不換行 (No Break)」樣式。</small>
+                </div>
+            `;
+        }
+
+        // 長詞處理建議
+        if (longWords.length > 0) {
+            html += `
+                <div class="long-word-box">
+                    <span class="tag tag-danger">排版風險：超長詞彙</span><br>
+                    <small>下列長詞若位於行末，易造成前一行字距出現大破洞：</small>
+                    <ul class="word-list">${longWords.map(w => `<li>${w}</li>`).join('')}</ul>
+                    <small><strong>處理原則：</strong>僅限在既存的單連字號「-」處進行換行，嚴禁切斷單個音節。</small>
+                </div>
+            `;
+        }
+
+        if (noBreaks.length === 0 && longWords.length === 0) {
+            html += `<p>✅ 文稿結構良好，未偵測到特殊長詞或輕聲排版風險。</p>`;
+        }
+
+        content.innerHTML = html;
+        section.scrollIntoView({ behavior: 'smooth' });
+    }
 </script>
 
 </body>
